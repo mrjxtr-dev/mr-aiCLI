@@ -1,0 +1,9 @@
+*.log
+*.tmp
+*.bak
+*.code-workspace
+.env
+
+bin/
+tmp/
+vscode/
