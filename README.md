@@ -10,7 +10,7 @@ Say hello to **Mr AI**, your no-nonsense, always-on, always-helpful terminal com
 - 🛠️ Code generation, debugging tips, and shell commands
 - 🔄 Automatic model switching when rate limits are hit
 - 🧵 Maintains conversation context throughout your session
-- 🖥️ Lightweight CLI experience with both streaming and regular response modes
+- 🖥️ Lightweight CLI experience
 
 ---
 
@@ -48,14 +48,6 @@ $ mrai
 You: Hey, can you explain Go interfaces?
 
 Mr-AI: Interfaces in Go define behavior through methods. They're implemented implicitly when a type has all the required methods. This enables polymorphism without inheritance. For example, `io.Reader` defines anything that can be read from with a single `Read` method.
-```
-
-Use streaming mode for real-time responses: (TO BE UPDATED *not really useful at the moment* 😅)
-
-```bash
-$ mrai
-You: stream:Write a quick Go function to reverse a string
-Mr-AI: [response appears token by token in real-time]
 ```
 
 ---

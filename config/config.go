@@ -35,7 +35,7 @@ func LoadConfig() *client.OpenRouterClient {
 	}
 
 	// Set up client prompts
-	systemPrompt := "You are a helpful personal AI assistant named MR-AI. Respond in a concise manner and use casual language."
+	systemPrompt := "You are a helpful personal AI assistant named Mr-AI. Respond in a concise manner and use casual language."
 	customContext := ""
 
 	// Create and initialize the client with the highest priority model

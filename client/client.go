@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -21,7 +20,6 @@ type ChatRequest struct {
 	Model     string    `json:"model"`
 	Messages  []Message `json:"messages"`
 	MaxTokens int       `json:"max_tokens"`
-	Stream    bool      `json:"stream,omitempty"`
 }
 
 // OpenRouterClient handles communication with the OpenRouter API
@@ -292,177 +290,6 @@ func (orc *OpenRouterClient) parseResponse(resp *http.Response) error {
 
 	// If response was parsed but had no choices
 	return fmt.Errorf("API returned empty choices array")
-}
-
-// SendMessageStream sends a message and streams the response with callback
-func (orc *OpenRouterClient) SendMessageStream(
-	content string,
-	callback func(string),
-) error {
-	// Add user message to history
-	orc.Messages = append(orc.Messages, Message{
-		Role:    "user",
-		Content: content,
-	})
-
-	// Keep trying models until one succeeds or we run out of options
-	var lastError error
-	for {
-		err := orc.sendMessageStreamWithCurrentModel(callback)
-		if err == nil {
-			// Success!
-			return nil
-		}
-
-		lastError = err
-
-		// Check if this is a rate limit error
-		if strings.Contains(err.Error(), "RATE LIMIT ERROR") {
-			// Try to switch to next model
-			if canSwitch, msg := orc.TryNextModel(); canSwitch {
-				continue // Try again with the new model
-			} else {
-				// No more models to try
-				return fmt.Errorf("%s", msg)
-			}
-		}
-
-		// Not a rate limit error
-		return lastError
-	}
-}
-
-// sendMessageStreamWithCurrentModel sends a streaming message using the current model
-func (orc *OpenRouterClient) sendMessageStreamWithCurrentModel(
-	callback func(string),
-) error {
-	// Prepare request body
-	body := ChatRequest{
-		Model:     orc.Model,
-		Messages:  orc.Messages,
-		MaxTokens: 4000,
-		Stream:    true,
-	}
-
-	jsonData, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	// Create and send request
-	req, err := http.NewRequest("POST", orc.BaseURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-
-	orc.setHeaders(req)
-	resp, err := orc.Client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// For non-200 responses, read the entire body to check for rate limits
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		bodyStr := string(bodyBytes)
-
-		// Check for rate limit error indicators
-		if resp.StatusCode == 429 || strings.Contains(bodyStr, "Rate limit exceeded") ||
-			strings.Contains(
-				bodyStr,
-				"rate limit",
-			) || strings.Contains(bodyStr, "ratelimit") {
-			return fmt.Errorf("RATE LIMIT ERROR: %s", bodyStr)
-		}
-
-		return fmt.Errorf(
-			"API error (status %d): %s",
-			resp.StatusCode,
-			bodyStr,
-		)
-	}
-
-	return orc.parseStreamResponse(resp, callback)
-}
-
-// parseStreamResponse processes streaming response and calls callback with content chunks
-func (orc *OpenRouterClient) parseStreamResponse(
-	resp *http.Response,
-	callback func(string),
-) error {
-	var fullContent strings.Builder
-	reader := bufio.NewReader(resp.Body)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		line = strings.TrimSpace(line)
-		if line == "" || line == "data: [DONE]" {
-			continue
-		}
-
-		line = strings.TrimPrefix(line, "data: ")
-
-		// Try to parse in standard format first
-		var standardResp struct {
-			Choices []struct {
-				Delta struct {
-					Content string `json:"content"`
-				} `json:"delta"`
-			} `json:"choices"`
-		}
-
-		if err := json.Unmarshal([]byte(line), &standardResp); err == nil &&
-			len(standardResp.Choices) > 0 {
-			content := standardResp.Choices[0].Delta.Content
-			if content != "" {
-				fullContent.WriteString(content)
-				callback(content)
-			}
-			continue
-		}
-
-		// Try alternate formats
-		var alternateResp struct {
-			Choices []struct {
-				Text    string `json:"text,omitempty"`
-				Content string `json:"content,omitempty"`
-			} `json:"choices"`
-		}
-
-		if err := json.Unmarshal([]byte(line), &alternateResp); err == nil &&
-			len(alternateResp.Choices) > 0 {
-			// Try to get content from either text or content field
-			content := alternateResp.Choices[0].Content
-			if content == "" {
-				content = alternateResp.Choices[0].Text
-			}
-
-			if content != "" {
-				fullContent.WriteString(content)
-				callback(content)
-			}
-			continue
-		}
-	}
-
-	// Add assistant's full response to message history
-	if fullContent.Len() > 0 {
-		orc.Messages = append(orc.Messages, Message{
-			Role:    "assistant",
-			Content: fullContent.String(),
-		})
-		return nil
-	} else {
-		return fmt.Errorf("no content received in stream response")
-	}
 }
 
 // setHeaders adds required and optional headers to the request
