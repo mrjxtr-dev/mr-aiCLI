@@ -3,18 +3,32 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"os/signal"
+	"slices"
+	"syscall"
 
 	"github.com/mrjxtr-dev/mr-aiCLI/config"
 	"github.com/mrjxtr-dev/mr-aiCLI/custom_errors"
 )
 
 func main() {
-	// Initialize client with configuration
-	client := config.LoadConfig()
+	// Set up channel to listen for interrupt signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// Set available models for auto-routing
-	client.SetAvailableModels(config.AvailableModels)
+	go func() {
+		<-sigChan
+		fmt.Printf("\n\nCTRL+C signal received, exiting!")
+		os.Exit(0)
+	}()
+
+	// Initialize client with configuration
+	client, err := config.LoadClient()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("------------------------------")
 	fmt.Println("          Mr-AI Chat          ")
@@ -30,12 +44,13 @@ func main() {
 		}
 		userInput := scanner.Text()
 
-		// Handle exit commands
-		if userInput == "exit" || userInput == "quit" {
-			fmt.Println("Exiting chat.")
-			break
+		// Check for exit commands
+		exitCmds := []string{"exit", "quit", "bye", "goodbye", "q"}
+		if slices.Contains(exitCmds, userInput) {
+			os.Exit(0)
 		}
 
+		// Send user input to OpenRouter
 		err := client.SendMessage(userInput)
 		if err != nil {
 			custom_errors.HandleError(err)
