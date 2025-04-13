@@ -38,7 +38,7 @@ type OpenRouterClient struct {
 }
 
 // NewOpenRouterClient creates a new client with the provided configuration
-func NewOpenRouterClient(
+func New(
 	apiKey, baseURL, model, systemPrompt, customContext string,
 ) *OpenRouterClient {
 	return &OpenRouterClient{
@@ -50,35 +50,6 @@ func NewOpenRouterClient(
 		CustomContext: customContext,
 		Messages:      []Message{},
 		ModelIndex:    0,
-	}
-}
-
-// TryNextModel attempts to use the next available model in the list
-func (orc *OpenRouterClient) TryNextModel() (bool, string) {
-	// If models list not provided or at the end, can't switch
-
-	if len(orc.AvailableModels) == 0 {
-		// No models list provided, using only the default model
-		return false, ""
-	}
-
-	orc.ModelIndex++
-	if orc.ModelIndex >= len(orc.AvailableModels) {
-		// We've tried all models
-		return false, "All available models have been tried and reached rate limits"
-	}
-
-	// Switch to next model
-	orc.Model = orc.AvailableModels[orc.ModelIndex]
-	return true, orc.Model
-}
-
-// SetAvailableModels sets the list of models to try in order
-func (orc *OpenRouterClient) SetAvailableModels(models []string) {
-	orc.AvailableModels = models
-	// Initialize current model to the first one if needed
-	if orc.ModelIndex == 0 && len(models) > 0 {
-		orc.Model = models[0]
 	}
 }
 
@@ -322,5 +293,34 @@ func (orc *OpenRouterClient) InitContext() {
 			Role:    "system",
 			Content: "Context: " + orc.CustomContext,
 		})
+	}
+}
+
+// TryNextModel attempts to use the next available model in the list
+func (orc *OpenRouterClient) TryNextModel() (bool, string) {
+	// If models list not provided or at the end, can't switch
+
+	if len(orc.AvailableModels) == 0 {
+		// No models list provided, using only the default model
+		return false, ""
+	}
+
+	orc.ModelIndex++
+	if orc.ModelIndex >= len(orc.AvailableModels) {
+		// We've tried all models
+		return false, "All available models have been tried and reached rate limits"
+	}
+
+	// Switch to next model
+	orc.Model = orc.AvailableModels[orc.ModelIndex]
+	return true, orc.Model
+}
+
+// SetAvailableModels sets the list of models to try in order
+func (orc *OpenRouterClient) SetAvailableModels(models []string) {
+	orc.AvailableModels = models
+	// Initialize current model to the first one if needed
+	if orc.ModelIndex == 0 && len(models) > 0 {
+		orc.Model = orc.AvailableModels[0]
 	}
 }

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -9,7 +9,7 @@ import (
 )
 
 // Available models with their priority order
-var AvailableModels = []string{
+var availableModels = []string{
 	"google/gemini-2.0-flash-exp:free",
 	"openrouter/optimus-alpha",
 	"meta-llama/llama-4-scout:free",
@@ -17,38 +17,43 @@ var AvailableModels = []string{
 }
 
 // LoadConfig loads environment variables and initializes an OpenRouter client
-func LoadConfig() *client.OpenRouterClient {
+func LoadClient() (*client.OpenRouterClient, error) {
 	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		return nil, fmt.Errorf("ERROR: loading .env file")
 	}
 
 	// Get configuration from environment variables
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("OPENROUTER_API_KEY not found in .env")
+	}
 	baseURL := os.Getenv("OPENROUTER_BASE_URL")
-
-	// Use default URL if not set
 	if baseURL == "" {
-		baseURL = "https://openrouter.ai/api/v1/chat/completions"
-		log.Println("No OPENROUTER_BASE_URL found in .env, using default:", baseURL)
+		return nil, fmt.Errorf("OPENROUTER_BASE_URL not found in .env")
 	}
 
 	// Set up client prompts
-	systemPrompt := "You are a helpful personal AI assistant named Mr-AI. Respond in a concise manner and use casual language."
-	customContext := ""
+	systemPrompt := "You are a helpful personal AI assistant named Mr-AI."
+	customContext := `Always use casual language in your response.
+	Your responses should be short, concise and to the point.
+	Do your best to sound as human as possible.`
 
 	// Create and initialize the client with the highest priority model
-	client := client.NewOpenRouterClient(
+	client := client.New(
 		apiKey,
 		baseURL,
-		AvailableModels[0],
+		availableModels[0],
 		systemPrompt,
 		customContext,
 	)
 
+	// Set available models for auto-routing
+	client.SetAvailableModels(availableModels)
+
 	// Set up initial system messages
 	client.InitContext()
 
-	return client
+	return client, nil
 }
