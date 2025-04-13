@@ -1,4 +1,4 @@
-# 🤖 Mr AI - Your Personal AI Assistant in the Terminal
+# 🤖 Mr AI - Your FREE Personal AI Assistant in the Terminal
 
 Say hello to **Mr AI**, your no-nonsense, always-on, always-helpful terminal companion. Need code snippets, explanations, or just someone to talk CLI with? Mr AI's got your back — straight from your shell. 🐚💡
 
